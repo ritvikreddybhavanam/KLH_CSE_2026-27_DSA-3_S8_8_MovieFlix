@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "username": "arjun_reddy",
+      "password": "Arjun@2026"
+    },
+    {
+      "username": "priya_sharma",
+      "password": "Priya#2026"
+    },
+    {
+      "username": "rahul_kumar",
+      "password": "Rahul@1234"
+    },
+    {
+      "username": "ritvik@gmail.com",
+      "password": "ritvik@123"
+    }
+  ]
+}
