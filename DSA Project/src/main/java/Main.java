@@ -6,6 +6,7 @@ import ui.LoginPage;
 import variables.Variables;
 import java.util.List;
 
+
 public class Main extends Application {
     private List<Movie> movies;
 

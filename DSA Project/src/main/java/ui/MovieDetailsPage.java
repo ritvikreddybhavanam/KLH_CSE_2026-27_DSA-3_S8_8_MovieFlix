@@ -13,21 +13,13 @@ import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import model.Movie;
+import theme.ThemeManager;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 public class MovieDetailsPage {
-
-    private static final String PRIMARY = "#AB3500";
-    private static final String PRIMARY_CONTAINER = "#FF6B35";
-    private static final String BACKGROUND = "#F9F9F7";
-    private static final String SURFACE = "#FFFFFF";
-    private static final String SURFACE_CONTAINER = "#EEEEEC";
-    private static final String TEXT = "#1A1C1B";
-    private static final String SECONDARY_TEXT = "#594139";
-    private static final String BORDER = "#E1BFB5";
-
     private final Movie movie;
     private final List<Movie> allMovies;
     private final Runnable onHome;
@@ -35,6 +27,10 @@ public class MovieDetailsPage {
     private final Runnable onGenres;
     private final Consumer<Movie> onMovieSelected;
     private BorderPane root;
+
+    public MovieDetailsPage(Movie movie, List<Movie> allMovies, Runnable onSearch, Runnable onGenres, Consumer<Movie> onMovieSelected) {
+        this(movie, allMovies, null, onSearch, onGenres, onMovieSelected);
+    }
 
     public MovieDetailsPage(Movie movie, List<Movie> allMovies, Runnable onHome, Runnable onSearch, Runnable onGenres, Consumer<Movie> onMovieSelected) {
         this.movie = movie;
@@ -52,20 +48,18 @@ public class MovieDetailsPage {
 
     private void createPage() {
         root = new BorderPane();
-        root.setStyle("-fx-background-color: " + BACKGROUND + ";");
+        ThemeManager.stylePage(root);
         root.setTop(createNavigationBar());
 
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setStyle("-fx-background-color: transparent;-fx-background: transparent;");
+        scrollPane.setStyle("-fx-background-color: transparent;" + "-fx-background: transparent;");
 
         VBox content = new VBox(50);
         content.setPadding(new Insets(40, 64, 80, 64));
-        content.getChildren().add(createHeroSection());
-        content.getChildren().add(createDetailsSection());
-        content.getChildren().add(createRecommendationsSection());
+        content.getChildren().addAll(createHeroSection(), createDetailsSection(), createRecommendationsSection());
 
         scrollPane.setContent(content);
         root.setCenter(scrollPane);
@@ -81,6 +75,7 @@ public class MovieDetailsPage {
         }
 
         Scene scene = new Scene(root, 1280, 720);
+        ThemeManager.applyTheme(scene);
         stage.setTitle("MovieFlix - " + getMovieTitle());
         stage.setScene(scene);
         stage.show();
@@ -91,14 +86,14 @@ public class MovieDetailsPage {
         navBar.setAlignment(Pos.CENTER_LEFT);
         navBar.setPadding(new Insets(18, 64, 18, 64));
         navBar.setPrefHeight(80);
-        navBar.setStyle("-fx-background-color: rgba(249,249,247,0.96);-fx-border-color: " + BORDER + ";-fx-border-width: 0 0 1 0;");
+        navBar.setStyle(ThemeManager.borderStyle());
 
         Label logo = new Label("MovieFlix");
-        logo.setStyle("-fx-font-family: 'Inter';-fx-font-size: 24px;-fx-font-weight: 900;-fx-text-fill: " + PRIMARY + ";");
+        logo.setStyle(ThemeManager.primaryTextStyle() + "-fx-font-size: 24px;" + "-fx-font-weight: 900;");
 
-        Button homeButton = createNavButton("Home");
-        Button searchButton = createNavButton("Search");
-        Button genresButton = createNavButton("Genres");
+        Button homeButton = createNavigationButton("Home");
+        Button searchButton = createNavigationButton("Search");
+        Button genresButton = createNavigationButton("Genres");
 
         homeButton.setOnAction(e -> {
             if (onHome != null) {
@@ -127,8 +122,9 @@ public class MovieDetailsPage {
             }
         });
 
-        HBox navigation = new HBox(28);
+        HBox navigation = new HBox(24);
         navigation.setAlignment(Pos.CENTER_LEFT);
+        navigation.setPadding(new Insets(0, 0, 0, 48));
         navigation.getChildren().addAll(homeButton, searchButton, genresButton);
 
         Region spacer = new Region();
@@ -141,21 +137,32 @@ public class MovieDetailsPage {
         watchlistButton.setOnAction(e -> watchlistButton.setText("✓"));
 
         Label profile = new Label("●");
-        profile.setStyle("-fx-font-size: 25px;-fx-text-fill: " + PRIMARY + ";");
+        profile.setStyle(ThemeManager.primaryTextStyle() + "-fx-font-size: 25px;");
 
         navBar.getChildren().addAll(logo, navigation, spacer, favoriteButton, watchlistButton, profile);
         return navBar;
     }
 
-    private Button createNavButton(String text) {
+    private Button createNavigationButton(String text) {
         Button button = new Button(text);
-        button.setStyle("-fx-background-color: transparent;-fx-text-fill: " + SECONDARY_TEXT + ";-fx-font-family: 'Inter';-fx-font-size: 14px;-fx-font-weight: 500;-fx-cursor: hand;");
+        button.setStyle(
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-background-color: transparent;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: 500;" +
+                        "-fx-cursor: hand;"
+        );
         return button;
     }
 
     private Button createIconButton(String icon) {
         Button button = new Button(icon);
-        button.setStyle("-fx-background-color: transparent;-fx-text-fill: " + SECONDARY_TEXT + ";-fx-font-size: 20px;-fx-cursor: hand;");
+        button.setStyle(
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-background-color: transparent;" +
+                        "-fx-font-size: 20px;" +
+                        "-fx-cursor: hand;"
+        );
         return button;
     }
 
@@ -166,7 +173,7 @@ public class MovieDetailsPage {
         VBox posterBox = new VBox();
         posterBox.setPrefWidth(280);
         posterBox.setMinWidth(280);
-        posterBox.setStyle("-fx-background-color: white;-fx-background-radius: 12px;-fx-border-color: " + BORDER + ";-fx-border-radius: 12px;");
+        ThemeManager.styleCard(posterBox);
 
         ImageView poster = createPoster();
         poster.setFitWidth(280);
@@ -184,19 +191,23 @@ public class MovieDetailsPage {
 
         Label title = new Label(getMovieTitle());
         title.setWrapText(true);
-        title.setStyle("-fx-font-family: 'Inter';-fx-font-size: 48px;-fx-font-weight: 700;-fx-text-fill: " + TEXT + ";");
+        title.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 48px;" +
+                        "-fx-font-weight: 700;"
+        );
 
         HBox meta = new HBox(20);
         meta.setAlignment(Pos.CENTER_LEFT);
 
         Label rating = new Label("★  " + getRating());
-        rating.setStyle("-fx-text-fill: " + PRIMARY_CONTAINER + ";-fx-font-size: 15px;-fx-font-weight: bold;");
+        rating.setStyle("-fx-text-fill: #FF6B35;" + "-fx-font-size: 15px;" + "-fx-font-weight: bold;");
 
         Label year = new Label(getYear());
-        year.setStyle(metaStyle());
+        year.setStyle(ThemeManager.secondaryTextStyle() + "-fx-font-size: 14px;");
 
         Label runtime = new Label(getRuntime());
-        runtime.setStyle(metaStyle());
+        runtime.setStyle(ThemeManager.secondaryTextStyle() + "-fx-font-size: 14px;");
 
         meta.getChildren().addAll(rating, year, runtime);
 
@@ -207,7 +218,12 @@ public class MovieDetailsPage {
         for (String genre : getGenres()) {
             Label genreLabel = new Label(genre);
             genreLabel.setPadding(new Insets(7, 12, 7, 12));
-            genreLabel.setStyle("-fx-background-color: " + SURFACE_CONTAINER + ";-fx-background-radius: 8px;-fx-text-fill: #5E5E5E;-fx-font-size: 14px;");
+            genreLabel.setStyle(
+                    "-fx-background-color: #EEEEEC;" +
+                            "-fx-background-radius: 8px;" +
+                            "-fx-text-fill: #5E5E5E;" +
+                            "-fx-font-size: 14px;"
+            );
             genrePane.getChildren().add(genreLabel);
         }
 
@@ -215,17 +231,24 @@ public class MovieDetailsPage {
         Label overview = new Label(getOverview());
         overview.setWrapText(true);
         overview.setMaxWidth(850);
-        overview.setStyle("-fx-font-family: 'Inter';-fx-font-size: 17px;-fx-text-fill: " + SECONDARY_TEXT + ";-fx-line-spacing: 5px;");
+        overview.setStyle(
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 17px;" +
+                        "-fx-line-spacing: 5px;"
+        );
 
         Label keywordsTitle = createSectionTitle("Keywords");
-
         FlowPane keywordPane = new FlowPane();
         keywordPane.setHgap(14);
         keywordPane.setVgap(8);
 
         for (String keyword : getKeywords()) {
             Label keywordLabel = new Label("#" + keyword);
-            keywordLabel.setStyle("-fx-text-fill: " + PRIMARY + ";-fx-font-size: 14px;-fx-font-weight: 500;");
+            keywordLabel.setStyle(
+                    "-fx-text-fill: #AB3500;" +
+                            "-fx-font-size: 14px;" +
+                            "-fx-font-weight: 500;"
+            );
             keywordPane.getChildren().add(keywordLabel);
         }
 
@@ -235,15 +258,24 @@ public class MovieDetailsPage {
         Button trailerButton = createPrimaryButton("Watch Trailer");
         trailerButton.setOnAction(e -> showTrailerMessage());
 
-        Button watchlistButton = createSecondaryButton("Add to Watchlist");
-        watchlistButton.setOnAction(e -> watchlistButton.setText("✓ Added to Watchlist"));
+        Button watchlistActionButton = createSecondaryButton("Add to Watchlist");
+        watchlistActionButton.setOnAction(e -> watchlistActionButton.setText("✓ Added to Watchlist"));
 
-        actions.getChildren().addAll(trailerButton, watchlistButton);
+        actions.getChildren().addAll(trailerButton, watchlistActionButton);
 
-        information.getChildren().addAll(title, meta, genrePane, overviewTitle, overview, keywordsTitle, keywordPane, actions);
+        information.getChildren().addAll(
+                title,
+                meta,
+                genrePane,
+                overviewTitle,
+                overview,
+                keywordsTitle,
+                keywordPane,
+                actions
+        );
+
         heroContent.getChildren().addAll(posterBox, information);
         hero.getChildren().add(heroContent);
-
         return hero;
     }
 
@@ -259,10 +291,6 @@ public class MovieDetailsPage {
         VBox releaseCard = createDetailCard("Release Date", getReleaseDate());
         VBox taglineCard = createDetailCard("Tagline", getTagline());
 
-        GridPane.setColumnIndex(languageCard, 0);
-        GridPane.setColumnIndex(releaseCard, 1);
-        GridPane.setColumnIndex(taglineCard, 2);
-
         ColumnConstraints c1 = new ColumnConstraints();
         ColumnConstraints c2 = new ColumnConstraints();
         ColumnConstraints c3 = new ColumnConstraints();
@@ -272,9 +300,13 @@ public class MovieDetailsPage {
         c3.setPercentWidth(50);
 
         grid.getColumnConstraints().addAll(c1, c2, c3);
+
+        GridPane.setColumnIndex(languageCard, 0);
+        GridPane.setColumnIndex(releaseCard, 1);
+        GridPane.setColumnIndex(taglineCard, 2);
+
         grid.getChildren().addAll(languageCard, releaseCard, taglineCard);
         section.getChildren().addAll(title, grid);
-
         return section;
     }
 
@@ -282,14 +314,21 @@ public class MovieDetailsPage {
         VBox card = new VBox(8);
         card.setPadding(new Insets(22));
         card.setMinHeight(95);
-        card.setStyle("-fx-background-color: " + SURFACE + ";-fx-background-radius: 12px;-fx-border-color: #E2E3E1;-fx-border-radius: 12px;");
+        ThemeManager.styleCard(card);
 
         Label headingLabel = new Label(heading);
-        headingLabel.setStyle("-fx-text-fill: #5E5E5E;-fx-font-size: 12px;-fx-font-weight: bold;");
+        headingLabel.setStyle(
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 12px;" +
+                        "-fx-font-weight: bold;"
+        );
 
         Label valueLabel = new Label(value);
         valueLabel.setWrapText(true);
-        valueLabel.setStyle("-fx-text-fill: " + TEXT + ";-fx-font-size: 16px;");
+        valueLabel.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 16px;"
+        );
 
         card.getChildren().addAll(headingLabel, valueLabel);
         return card;
@@ -305,18 +344,53 @@ public class MovieDetailsPage {
         List<Movie> recommendations = getRecommendations();
 
         for (Movie recommended : recommendations) {
-            VBox card = createMovieCard(recommended);
-            movieContainer.getChildren().add(card);
+            movieContainer.getChildren().add(createMovieCard(recommended));
         }
 
         section.getChildren().addAll(title, movieContainer);
         return section;
     }
 
+    private List<Movie> getRecommendations() {
+        List<Movie> result = new ArrayList<>();
+
+        if (allMovies == null || movie == null) {
+            return result;
+        }
+
+        List<String> currentGenres = getGenres(movie);
+
+        for (Movie candidate : allMovies) {
+            if (candidate == null || candidate == movie) {
+                continue;
+            }
+
+            boolean sameGenre = false;
+
+            for (String genre : getGenres(candidate)) {
+                if (currentGenres.contains(genre)) {
+                    sameGenre = true;
+                    break;
+                }
+            }
+
+            if (sameGenre) {
+                result.add(candidate);
+
+                if (result.size() >= 4) {
+                    break;
+                }
+            }
+        }
+
+        return result;
+    }
+
     private VBox createMovieCard(Movie recommendedMovie) {
         VBox card = new VBox();
         card.setPrefWidth(220);
-        card.setStyle("-fx-background-color: " + SURFACE + ";-fx-background-radius: 12px;-fx-border-color: transparent;-fx-border-radius: 12px;-fx-cursor: hand;");
+        card.setMaxWidth(220);
+        ThemeManager.styleCard(card);
 
         ImageView imageView = createPosterForMovie(recommendedMovie);
         imageView.setFitWidth(220);
@@ -331,10 +405,17 @@ public class MovieDetailsPage {
         Label title = new Label(getMovieTitle(recommendedMovie));
         title.setMaxWidth(210);
         title.setWrapText(false);
-        title.setStyle("-fx-font-size: 17px;-fx-font-weight: 600;-fx-text-fill: " + TEXT + ";");
+        title.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 17px;" +
+                        "-fx-font-weight: 600;"
+        );
 
-        Label meta = new Label(getYear(recommendedMovie) + " • " + getGenresString(recommendedMovie));
-        meta.setStyle("-fx-font-size: 13px;-fx-text-fill: #5E5E5E;");
+        Label meta = new Label(
+                getYear(recommendedMovie) + " • " + getGenresString(recommendedMovie)
+        );
+        meta.setWrapText(true);
+        meta.setStyle(ThemeManager.secondaryTextStyle() + "-fx-font-size: 13px;");
 
         VBox text = new VBox(6);
         text.setPadding(new Insets(12, 8, 12, 8));
@@ -364,7 +445,7 @@ public class MovieDetailsPage {
 
         if (posterUrl != null && !posterUrl.isEmpty()) {
             try {
-                Image image = new Image(posterUrl, true);
+                Image image = new Image(posterUrl, 280, 420, false, true, true);
                 imageView.setImage(image);
             } catch (Exception ignored) {
             }
@@ -373,65 +454,40 @@ public class MovieDetailsPage {
         return imageView;
     }
 
-    private List<Movie> getRecommendations() {
-        List<Movie> result = new ArrayList<>();
-
-        if (allMovies == null || movie == null) {
-            return result;
-        }
-
-        List<String> currentGenres = getGenres(movie);
-
-        for (Movie candidate : allMovies) {
-            if (candidate == null) {
-                continue;
-            }
-
-            if (candidate == movie) {
-                continue;
-            }
-
-            boolean sameGenre = false;
-
-            for (String genre : getGenres(candidate)) {
-                if (currentGenres.contains(genre)) {
-                    sameGenre = true;
-                    break;
-                }
-            }
-
-            if (sameGenre) {
-                result.add(candidate);
-
-                if (result.size() >= 4) {
-                    break;
-                }
-            }
-        }
-
-        return result;
-    }
-
     private Label createSectionTitle(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-font-family: 'Inter';-fx-font-size: 24px;-fx-font-weight: 600;-fx-text-fill: " + TEXT + ";");
+        label.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 24px;" +
+                        "-fx-font-weight: 600;"
+        );
         return label;
     }
 
     private Button createPrimaryButton(String text) {
         Button button = new Button(text);
-        button.setStyle("-fx-background-color: " + PRIMARY_CONTAINER + ";-fx-text-fill: white;-fx-font-size: 14px;-fx-font-weight: bold;-fx-padding: 12 24;-fx-background-radius: 8px;-fx-cursor: hand;");
+        ThemeManager.styleButton(button);
+        button.setStyle(
+                button.getStyle() +
+                        "-fx-padding: 12 24;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-cursor: hand;"
+        );
         return button;
     }
 
     private Button createSecondaryButton(String text) {
         Button button = new Button(text);
-        button.setStyle("-fx-background-color: white;-fx-border-color: " + PRIMARY + ";-fx-border-width: 1px;-fx-text-fill: " + TEXT + ";-fx-font-size: 14px;-fx-font-weight: 500;-fx-padding: 12 24;-fx-background-radius: 8px;-fx-border-radius: 8px;-fx-cursor: hand;");
+        ThemeManager.styleButton(button);
+        button.setStyle(
+                button.getStyle() +
+                        "-fx-padding: 12 24;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: 500;" +
+                        "-fx-cursor: hand;"
+        );
         return button;
-    }
-
-    private String metaStyle() {
-        return "-fx-text-fill: " + SECONDARY_TEXT + ";-fx-font-size: 14px;";
     }
 
     private void showTrailerMessage() {
@@ -454,7 +510,6 @@ public class MovieDetailsPage {
         if (m == null || m.getTitle() == null || m.getTitle().isEmpty()) {
             return "Unknown Movie";
         }
-
         return m.getTitle();
     }
 
@@ -462,7 +517,6 @@ public class MovieDetailsPage {
         if (movie == null) {
             return "N/A";
         }
-
         return String.format("%.1f", movie.getVoteAverage());
     }
 
@@ -476,19 +530,13 @@ public class MovieDetailsPage {
         }
 
         String date = m.getReleaseDate();
-
-        if (date.length() >= 4) {
-            return date.substring(0, 4);
-        }
-
-        return date;
+        return date.length() >= 4 ? date.substring(0, 4) : date;
     }
 
     private String getRuntime() {
         if (movie == null || movie.getRuntime() == null) {
             return "N/A";
         }
-
         return movie.getRuntime() + " min";
     }
 
@@ -496,7 +544,6 @@ public class MovieDetailsPage {
         if (movie == null || movie.getOverview() == null || movie.getOverview().isEmpty()) {
             return "No overview available.";
         }
-
         return movie.getOverview();
     }
 
@@ -554,7 +601,6 @@ public class MovieDetailsPage {
         if (movie == null || movie.getOriginalLanguage() == null || movie.getOriginalLanguage().isEmpty()) {
             return "Unknown";
         }
-
         return movie.getOriginalLanguage();
     }
 
@@ -562,7 +608,6 @@ public class MovieDetailsPage {
         if (movie == null || movie.getReleaseDate() == null || movie.getReleaseDate().isEmpty()) {
             return "Unknown";
         }
-
         return movie.getReleaseDate();
     }
 
@@ -570,7 +615,6 @@ public class MovieDetailsPage {
         if (movie == null || movie.getTagline() == null || movie.getTagline().isEmpty()) {
             return "No tagline available.";
         }
-
         return movie.getTagline();
     }
 

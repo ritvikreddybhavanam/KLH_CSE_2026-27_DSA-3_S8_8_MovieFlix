@@ -6,46 +6,51 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import model.Genre;
 import model.Movie;
+import theme.ThemeManager;
+import ui.components.Navbar;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 public class GenrePage {
+
     private final List<Movie> movies;
     private final Consumer<Movie> onMovieSelected;
     private final Runnable onHome;
     private final Runnable onGenres;
 
-    private static final String BACKGROUND = "#F9F9F7";
-    private static final String WHITE = "#FFFFFF";
-    private static final String PRIMARY = "#FF6B35";
-    private static final String PRIMARY_DARK = "#AB3500";
-    private static final String TEXT = "#1A1C1B";
-    private static final String SECONDARY_TEXT = "#594139";
-    private static final String BORDER = "#E1BFB5";
-    private static final String LIGHT_GRAY = "#F4F4F2";
-    private static final String MEDIUM_GRAY = "#E8E8E6";
-
     private FlowPane movieGrid;
     private Label resultsTitle;
     private Button loadMoreButton;
+
     private String selectedGenre = "Drama";
     private int displayedMovies = 20;
 
-    private final String[] genres = {"Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Romance", "Science Fiction", "Thriller", "War"};
+    private final String[] genres = {
+            "Action", "Adventure", "Animation", "Comedy",
+            "Crime", "Drama", "Fantasy", "Horror",
+            "Romance", "Science Fiction", "Thriller", "War"
+    };
+
     private final List<Button> genreButtons = new ArrayList<>();
 
-    public GenrePage(List<Movie> movies, Consumer<Movie> onMovieSelected, Runnable onHome, Runnable onGenres) {
+    public GenrePage(
+            List<Movie> movies,
+            Consumer<Movie> onMovieSelected,
+            Runnable onHome,
+            Runnable onGenres
+    ) {
         if (movies == null || movies.isEmpty()) {
-            this.movies = data.MovieDataLoader.loadMovies(variables.Variables.filePath);
+            this.movies = data.MovieDataLoader.loadMovies(
+                    variables.Variables.filePath
+            );
         } else {
             this.movies = movies;
         }
+
         this.onMovieSelected = onMovieSelected;
         this.onHome = onHome;
         this.onGenres = onGenres;
@@ -62,6 +67,9 @@ public class GenrePage {
     public void show(javafx.stage.Stage stage) {
         BorderPane root = createPage();
         javafx.scene.Scene scene = new javafx.scene.Scene(root, 1280, 720);
+
+        ThemeManager.applyTheme(scene);
+
         stage.setTitle("MovieFlix - Browse by Genre");
         stage.setScene(scene);
         stage.show();
@@ -69,23 +77,36 @@ public class GenrePage {
 
     public BorderPane createPage() {
         BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: " + BACKGROUND + ";");
-        root.setTop(createNavbar());
+        ThemeManager.stylePage(root);
+
+        root.setTop(Navbar.create(movies, "Genres"));
 
         VBox content = new VBox(24);
-        content.setPadding(new Insets(48, 64, 80, 64));
+        content.setPadding(new Insets(42, 64, 80, 64));
 
-        VBox header = new VBox(5);
+        VBox header = new VBox(6);
+
         Label title = new Label("Browse by Genre");
-        title.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 48px; -fx-font-weight: 700; -fx-text-fill: " + TEXT + ";");
+        title.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 48px;" +
+                        "-fx-font-weight: 700;"
+        );
 
-        Label subtitle = new Label("Explore movies by your favorite genres.");
-        subtitle.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 18px; -fx-text-fill: " + SECONDARY_TEXT + ";");
+        Label subtitle = new Label(
+                "Explore movies by your favorite genres."
+        );
+        subtitle.setStyle(
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 18px;"
+        );
+
         header.getChildren().addAll(title, subtitle);
 
         FlowPane genrePane = new FlowPane();
-        genrePane.setHgap(12);
-        genrePane.setVgap(12);
+        genrePane.setHgap(14);
+        genrePane.setVgap(14);
+
         genreButtons.clear();
 
         for (String genre : genres) {
@@ -97,19 +118,29 @@ public class GenrePage {
         HBox resultHeader = new HBox();
         resultHeader.setAlignment(Pos.CENTER_LEFT);
         resultHeader.setPadding(new Insets(20, 0, 16, 0));
-        resultHeader.setBorder(new Border(new BorderStroke(Color.web(BORDER), BorderStrokeStyle.SOLID, CornerRadii.EMPTY, new BorderWidths(0, 0, 1, 0))));
+        resultHeader.setStyle(ThemeManager.borderStyle());
 
         resultsTitle = new Label("Drama Movies");
-        resultsTitle.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 32px; -fx-font-weight: 600; -fx-text-fill: " + TEXT + ";");
+        resultsTitle.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 32px;" +
+                        "-fx-font-weight: 700;"
+        );
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button gridButton = createViewButton("▦");
         Button listButton = createViewButton("☷");
+
         HBox viewButtons = new HBox(8);
         viewButtons.getChildren().addAll(gridButton, listButton);
-        resultHeader.getChildren().addAll(resultsTitle, spacer, viewButtons);
+
+        resultHeader.getChildren().addAll(
+                resultsTitle,
+                spacer,
+                viewButtons
+        );
 
         movieGrid = new FlowPane();
         movieGrid.setHgap(24);
@@ -120,124 +151,86 @@ public class GenrePage {
         loadMoreBox.setAlignment(Pos.CENTER);
         loadMoreBox.setPadding(new Insets(24, 0, 0, 0));
 
-        loadMoreButton = new Button();
-        loadMoreButton.setStyle("-fx-background-color: " + WHITE + "; -fx-border-color: " + PRIMARY_DARK + "; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-text-fill: " + PRIMARY_DARK + "; -fx-font-family: 'Inter'; -fx-font-size: 14px; -fx-font-weight: 600; -fx-padding: 12 32 12 32; -fx-cursor: hand;");
+        loadMoreButton = new Button("Load More");
+        ThemeManager.styleButton(loadMoreButton);
+        loadMoreButton.setPadding(new Insets(12, 32, 12, 32));
+
+        loadMoreButton.setOnMousePressed(e ->
+                loadMoreButton.setTranslateY(2)
+        );
+
+        loadMoreButton.setOnMouseReleased(e ->
+                loadMoreButton.setTranslateY(0)
+        );
+
         loadMoreButton.setOnAction(e -> {
             displayedMovies += 20;
             updateMovies();
         });
+
         loadMoreBox.getChildren().add(loadMoreButton);
 
-        content.getChildren().addAll(header, genrePane, resultHeader, movieGrid, loadMoreBox);
+        content.getChildren().addAll(
+                header,
+                genrePane,
+                resultHeader,
+                movieGrid,
+                loadMoreBox
+        );
 
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scrollPane.setStyle(
+                "-fx-background-color: transparent;" +
+                        "-fx-background: transparent;" +
+                        "-fx-border-color: transparent;"
+        );
+
         root.setCenter(scrollPane);
 
         showMoviesByGenre("Drama");
+
         return root;
-    }
-
-    private HBox createNavbar() {
-        HBox navbar = new HBox();
-        navbar.setAlignment(Pos.CENTER_LEFT);
-        navbar.setPadding(new Insets(0, 64, 0, 64));
-        navbar.setPrefHeight(80);
-        navbar.setStyle("-fx-background-color: rgba(249,249,247,0.97); -fx-border-color: " + BORDER + "; -fx-border-width: 0 0 1 0;");
-
-        Label logo = new Label("MovieFlix");
-        logo.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 24px; -fx-font-weight: 900; -fx-text-fill: " + PRIMARY_DARK + ";");
-
-        HBox navigation = new HBox(24);
-        navigation.setAlignment(Pos.CENTER_LEFT);
-        navigation.setPadding(new Insets(0, 0, 0, 48));
-
-        Button home = createNavButton("Home", false);
-        Button search = createNavButton("Search", false);
-        Button genresButton = createNavButton("Genres", true);
-
-        home.setOnAction(e -> {
-            if (onHome != null) {
-                onHome.run();
-            } else {
-                javafx.stage.Stage stage = (javafx.stage.Stage) ((Button) e.getSource()).getScene().getWindow();
-                new SearchPage(movies).show(stage);
-            }
-        });
-
-        search.setOnAction(e -> {
-            if (onHome != null) {
-                onHome.run();
-            } else {
-                javafx.stage.Stage stage = (javafx.stage.Stage) ((Button) e.getSource()).getScene().getWindow();
-                new SearchPage(movies).show(stage);
-            }
-        });
-
-        genresButton.setOnAction(e -> {
-            if (onGenres != null) {
-                onGenres.run();
-            }
-        });
-
-        navigation.getChildren().addAll(home, search, genresButton);
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Button favorite = createIconButton("♥");
-        Button watchlist = createIconButton("🔖");
-
-        Circle circle = new Circle(20, Color.web(MEDIUM_GRAY));
-        Label profileText = new Label("U");
-        profileText.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + TEXT + ";");
-
-        StackPane profile = new StackPane(circle, profileText);
-
-        navbar.getChildren().addAll(logo, navigation, spacer, favorite, watchlist, profile);
-        HBox.setMargin(favorite, new Insets(0, 16, 0, 0));
-        HBox.setMargin(watchlist, new Insets(0, 24, 0, 0));
-
-        return navbar;
-    }
-
-    private Button createNavButton(String text, boolean active) {
-        Button button = new Button(text);
-        button.setStyle("-fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 6 0 8 0; -fx-font-family: 'Inter'; -fx-font-size: 14px; -fx-font-weight: " + (active ? "700" : "500") + "; -fx-text-fill: " + (active ? PRIMARY_DARK : SECONDARY_TEXT) + "; -fx-cursor: hand;");
-        return button;
     }
 
     private Button createIconButton(String text) {
         Button button = new Button(text);
-        button.setStyle("-fx-background-color: transparent; -fx-font-size: 20px; -fx-text-fill: " + TEXT + "; -fx-cursor: hand;");
-
-        button.setOnMouseEntered(e -> button.setStyle("-fx-background-color: transparent; -fx-font-size: 20px; -fx-text-fill: " + PRIMARY_DARK + "; -fx-cursor: hand;"));
-        button.setOnMouseExited(e -> button.setStyle("-fx-background-color: transparent; -fx-font-size: 20px; -fx-text-fill: " + TEXT + "; -fx-cursor: hand;"));
-
+        ThemeManager.styleButton(button);
+        button.setPrefSize(44, 44);
         return button;
     }
 
     private Button createGenreButton(String genre) {
         Button button = new Button(genre);
-        button.setPadding(new Insets(9, 24, 9, 24));
-        button.setStyle(getGenreStyle(genre.equals(selectedGenre)));
-        button.setOnAction(e -> showMoviesByGenre(genre));
+        ThemeManager.styleButton(button);
+        button.setPadding(new Insets(10, 24, 10, 24));
+
+        button.setOnAction(e ->
+                showMoviesByGenre(genre)
+        );
+
+        button.setOnMousePressed(e -> {
+            if (!genre.equals(selectedGenre)) {
+                button.setTranslateY(2);
+            }
+        });
+
+        button.setOnMouseReleased(e ->
+                button.setTranslateY(0)
+        );
+
         return button;
-    }
-
-    private String getGenreStyle(boolean active) {
-        if (active) {
-            return "-fx-background-color: " + PRIMARY + "; -fx-text-fill: white; -fx-background-radius: 999px; -fx-font-family: 'Inter'; -fx-font-size: 14px; -fx-font-weight: 500; -fx-cursor: hand;";
-        }
-
-        return "-fx-background-color: " + WHITE + "; -fx-border-color: " + BORDER + "; -fx-border-radius: 999px; -fx-background-radius: 999px; -fx-text-fill: " + TEXT + "; -fx-font-family: 'Inter'; -fx-font-size: 14px; -fx-font-weight: 500; -fx-cursor: hand;";
     }
 
     private Button createViewButton(String text) {
         Button button = new Button(text);
-        button.setPrefSize(42, 42);
-        button.setStyle("-fx-background-color: transparent; -fx-border-color: " + BORDER + "; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-font-size: 20px; -fx-text-fill: " + SECONDARY_TEXT + "; -fx-cursor: hand;");
+        ThemeManager.styleButton(button);
+        button.setPrefSize(44, 44);
+        button.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 20px;" +
+                        "-fx-background-radius: 14px;"
+        );
         return button;
     }
 
@@ -248,7 +241,14 @@ public class GenrePage {
         for (int i = 0; i < genreButtons.size(); i++) {
             Button button = genreButtons.get(i);
             String genreName = genres[i];
-            button.setStyle(getGenreStyle(genreName.equals(selectedGenre)));
+
+            if (genreName.equals(selectedGenre)) {
+                button.setScaleX(1.03);
+                button.setScaleY(1.03);
+            } else {
+                button.setScaleX(1);
+                button.setScaleY(1);
+            }
         }
 
         if (resultsTitle != null) {
@@ -306,7 +306,9 @@ public class GenrePage {
         int end = Math.min(displayedMovies, filtered.size());
 
         for (int i = 0; i < end; i++) {
-            movieGrid.getChildren().add(createMovieCard(filtered.get(i)));
+            movieGrid.getChildren().add(
+                    createMovieCard(filtered.get(i))
+            );
         }
 
         if (filtered.size() > displayedMovies) {
@@ -319,8 +321,16 @@ public class GenrePage {
         }
 
         if (filtered.isEmpty()) {
-            Label noMovies = new Label("No " + selectedGenre + " movies found.");
-            noMovies.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 18px; -fx-text-fill: " + SECONDARY_TEXT + ";");
+            Label noMovies = new Label(
+                    "No " + selectedGenre + " movies found."
+            );
+
+            noMovies.setStyle(
+                    ThemeManager.secondaryTextStyle() +
+                            "-fx-font-size: 18px;" +
+                            "-fx-font-weight: 500;"
+            );
+
             movieGrid.getChildren().add(noMovies);
         }
     }
@@ -329,7 +339,7 @@ public class GenrePage {
         VBox card = new VBox();
         card.setPrefWidth(220);
         card.setMaxWidth(220);
-        card.setStyle("-fx-background-color: " + WHITE + "; -fx-background-radius: 12px; -fx-border-color: rgba(225,191,181,0.25); -fx-border-radius: 12px; -fx-effect: dropshadow(gaussian,rgba(0,0,0,0.04),20,0,0,4); -fx-cursor: hand;");
+        ThemeManager.styleCard(card);
 
         StackPane posterBox = new StackPane();
         posterBox.setPrefSize(220, 330);
@@ -340,11 +350,20 @@ public class GenrePage {
 
         if (posterUrl != null && !posterUrl.isBlank()) {
             try {
-                Image image = new Image(posterUrl, 220, 330, false, true, true);
+                Image image = new Image(
+                        posterUrl,
+                        220,
+                        330,
+                        false,
+                        true,
+                        true
+                );
+
                 ImageView poster = new ImageView(image);
                 poster.setFitWidth(220);
                 poster.setFitHeight(330);
                 poster.setPreserveRatio(false);
+
                 posterBox.getChildren().add(poster);
             } catch (Exception e) {
                 posterBox.getChildren().add(createPlaceholder(movie));
@@ -354,15 +373,28 @@ public class GenrePage {
         }
 
         Button bookmark = new Button("🔖");
-        bookmark.setStyle("-fx-background-color: rgba(255,255,255,0.9); -fx-background-radius: 50%; -fx-font-size: 16px; -fx-cursor: hand;");
+        ThemeManager.styleButton(bookmark);
+        bookmark.setPrefSize(40, 40);
+
+        bookmark.setOnMouseEntered(e -> {
+            bookmark.setScaleX(1.08);
+            bookmark.setScaleY(1.08);
+        });
+
+        bookmark.setOnMouseExited(e -> {
+            bookmark.setScaleX(1);
+            bookmark.setScaleY(1);
+        });
+
         StackPane.setAlignment(bookmark, Pos.TOP_RIGHT);
         StackPane.setMargin(bookmark, new Insets(10));
         posterBox.getChildren().add(bookmark);
 
-        VBox info = new VBox(6);
+        VBox info = new VBox(7);
         info.setPadding(new Insets(14));
 
         String titleText = movie.getTitle();
+
         if (titleText == null || titleText.isBlank()) {
             titleText = "Unknown Movie";
         }
@@ -370,25 +402,41 @@ public class GenrePage {
         Label title = new Label(titleText);
         title.setMaxWidth(190);
         title.setEllipsisString("...");
-        title.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 18px; -fx-font-weight: 600; -fx-text-fill: " + TEXT + ";");
+        title.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 18px;" +
+                        "-fx-font-weight: 700;"
+        );
 
         HBox metadata = new HBox();
         metadata.setAlignment(Pos.CENTER_LEFT);
 
         Label year = new Label(getYear(movie));
-        year.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 14px; -fx-text-fill: " + SECONDARY_TEXT + ";");
+        year.setStyle(
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 14px;"
+        );
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Label genre = new Label(getGenreText(movie));
-        genre.setPadding(new Insets(3, 8, 3, 8));
-        genre.setStyle("-fx-background-color: " + MEDIUM_GRAY + "; -fx-background-radius: 4px; -fx-font-family: 'Inter'; -fx-font-size: 12px; -fx-text-fill: " + SECONDARY_TEXT + ";");
+        genre.setPadding(new Insets(4, 9, 4, 9));
+        genre.setStyle(
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 12px;" +
+                        "-fx-font-weight: 600;" +
+                        "-fx-background-radius: 8px;"
+        );
 
         metadata.getChildren().addAll(year, spacer, genre);
 
         Label rating = new Label("★ " + getRating(movie));
-        rating.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: " + PRIMARY_DARK + ";");
+        rating.setStyle(
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 13px;" +
+                        "-fx-font-weight: 700;"
+        );
 
         info.getChildren().addAll(title, metadata, rating);
         card.getChildren().addAll(posterBox, info);
@@ -401,21 +449,23 @@ public class GenrePage {
             if (onMovieSelected != null) {
                 onMovieSelected.accept(movie);
             } else {
-                javafx.stage.Stage stage = (javafx.stage.Stage) card.getScene().getWindow();
+                javafx.stage.Stage stage =
+                        (javafx.stage.Stage) card.getScene().getWindow();
+
                 new MovieDetailsPage(movie, movies).show(stage);
             }
         });
 
         card.setOnMouseEntered(e -> {
-            card.setScaleX(1.02);
-            card.setScaleY(1.02);
-            card.setStyle("-fx-background-color: " + WHITE + "; -fx-background-radius: 12px; -fx-border-color: " + BORDER + "; -fx-border-radius: 12px; -fx-effect: dropshadow(gaussian,rgba(0,0,0,0.10),30,0,0,10); -fx-cursor: hand;");
+            card.setScaleX(1.025);
+            card.setScaleY(1.025);
+            card.setTranslateY(-3);
         });
 
         card.setOnMouseExited(e -> {
             card.setScaleX(1);
             card.setScaleY(1);
-            card.setStyle("-fx-background-color: " + WHITE + "; -fx-background-radius: 12px; -fx-border-color: rgba(225,191,181,0.25); -fx-border-radius: 12px; -fx-effect: dropshadow(gaussian,rgba(0,0,0,0.04),20,0,0,4); -fx-cursor: hand;");
+            card.setTranslateY(0);
         });
 
         return card;
@@ -423,14 +473,24 @@ public class GenrePage {
 
     private StackPane createPlaceholder(Movie movie) {
         StackPane pane = new StackPane();
-        pane.setStyle("-fx-background-color: " + LIGHT_GRAY + ";");
+        pane.setStyle("-fx-background-radius: 18px 18px 0 0;");
 
         String title = movie.getTitle();
-        Label label = new Label(title == null || title.isBlank() ? "Unknown Movie" : title);
+
+        Label label = new Label(
+                title == null || title.isBlank()
+                        ? "Unknown Movie"
+                        : title
+        );
+
         label.setWrapText(true);
         label.setMaxWidth(180);
         label.setAlignment(Pos.CENTER);
-        label.setStyle("-fx-font-family: 'Inter'; -fx-font-size: 18px; -fx-font-weight: 600; -fx-text-fill: " + SECONDARY_TEXT + ";");
+        label.setStyle(
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 18px;" +
+                        "-fx-font-weight: 700;"
+        );
 
         pane.getChildren().add(label);
         return pane;
@@ -444,7 +504,8 @@ public class GenrePage {
                 return null;
             }
 
-            if (url.startsWith("http://") || url.startsWith("https://")) {
+            if (url.startsWith("http://") ||
+                    url.startsWith("https://")) {
                 return url;
             }
 
@@ -481,7 +542,9 @@ public class GenrePage {
 
     private String getGenreText(Movie movie) {
         try {
-            if (movie.getGenres() != null && !movie.getGenres().isEmpty()) {
+            if (movie.getGenres() != null &&
+                    !movie.getGenres().isEmpty()) {
+
                 Genre genre = movie.getGenres().get(0);
 
                 if (genre != null && genre.getName() != null) {

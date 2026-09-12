@@ -1,16 +1,24 @@
 {
   "users": [
     {
-      "username": "arjun_reddy",
+      "username": "arjun.reddy@gmail.com",
       "password": "Arjun@2026"
     },
     {
-      "username": "priya_sharma",
-      "password": "Priya#2026"
+      "username": "priya.sharma@gmail.com",
+      "password": "Priya#2025"
     },
     {
-      "username": "rahul_kumar",
-      "password": "Rahul@1234"
+      "username": "rahul.kumar@outlook.com",
+      "password": "Rahul@2025"
+    },
+    {
+      "username": "ritvik.patel@gmail.com",
+      "password": "Ritvik@2026"
+    },
+    {
+      "username": "test@gmail.com",
+      "password": "test@123"
     },
     {
       "username": "ritvik@gmail.com",

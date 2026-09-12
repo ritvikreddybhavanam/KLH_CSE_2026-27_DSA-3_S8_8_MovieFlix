@@ -2,7 +2,7 @@ package ui;
 
 import algorithms.DocumentSimilarity;
 import algorithms.MovieSearchAlgorithms;
-
+import algorithms.Trie;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -10,31 +10,23 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
-
 import model.Genre;
 import model.Movie;
+import theme.ThemeManager;
+import ui.components.Navbar;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SearchPage {
 
     private final List<Movie> movies;
 
-    private static final String BACKGROUND = "#F9F9F7";
-    private static final String WHITE = "#FFFFFF";
+    private Trie titleTrie;
 
-    private static final String PRIMARY = "#FF6B35";
-    private static final String PRIMARY_DARK = "#AB3500";
-
-    private static final String TEXT = "#1A1C1B";
-    private static final String SECONDARY = "#594139";
-    private static final String BORDER = "#E1BFB5";
-
-    private static final String LIGHT_GRAY = "#F4F4F2";
-    private static final String MEDIUM_GRAY = "#E8E8E6";
+    private final Map<String, Movie> titleMovieMap = new HashMap<>();
 
     private FlowPane movieGrid;
     private FlowPane recommendationGrid;
@@ -45,11 +37,17 @@ public class SearchPage {
     private TextField searchField;
     private ComboBox<String> searchType;
 
+    private ListView<String> suggestionList;
+
+    private VBox searchContainer;
+
     private int displayedMovies = 20;
 
     private static final int RECOMMENDATION_LIMIT = 5;
+    private static final int SUGGESTION_LIMIT = 6;
 
     public SearchPage(List<Movie> movies) {
+
         if (movies == null || movies.isEmpty()) {
             this.movies = data.MovieDataLoader.loadMovies(
                     variables.Variables.filePath
@@ -57,20 +55,58 @@ public class SearchPage {
         } else {
             this.movies = movies;
         }
+
+        buildTitleMap();
+
+        if (this.movies != null && !this.movies.isEmpty()) {
+            titleTrie = new Trie(this.movies);
+        }
     }
 
     public SearchPage() {
         this(null);
     }
 
+    private void buildTitleMap() {
+
+        if (movies == null) {
+            return;
+        }
+
+        for (Movie movie : movies) {
+
+            if (movie == null ||
+                    movie.getTitle() == null ||
+                    movie.getTitle().isBlank()) {
+                continue;
+            }
+
+            String title = movie.getTitle()
+                    .trim()
+                    .toLowerCase();
+
+            titleMovieMap.put(title, movie);
+        }
+    }
+
     public void show(Stage stage) {
+
+        if (stage == null) {
+            return;
+        }
 
         BorderPane root = createPage(stage);
 
         Scene scene = new Scene(root, 1280, 720);
 
-        stage.setTitle("MovieFlix - Search");
+        ThemeManager.applyTheme(scene);
+
+        stage.setTitle("MovieFlix - Home");
         stage.setScene(scene);
+
+        // Keep the application maximized
+        stage.setMaximized(true);
+
         stage.show();
     }
 
@@ -78,11 +114,17 @@ public class SearchPage {
 
         BorderPane root = new BorderPane();
 
-        root.setStyle(
-                "-fx-background-color: " + BACKGROUND + ";"
-        );
+        ThemeManager.stylePage(root);
 
-        root.setTop(createNavbar(stage));
+        /*
+         * Use the shared Navbar component.
+         *
+         * "Home" is the active page because SearchPage
+         * currently represents the Home/Search screen.
+         */
+        root.setTop(
+                Navbar.create(movies, "Home")
+        );
 
         VBox content = new VBox(24);
 
@@ -90,13 +132,14 @@ public class SearchPage {
                 new Insets(48, 64, 60, 64)
         );
 
-        Label title = new Label("Find Your Next Movie");
+        Label title = new Label(
+                "Find Your Next Movie"
+        );
 
         title.setStyle(
-                "-fx-font-family: 'Inter';" +
+                ThemeManager.primaryTextStyle() +
                         "-fx-font-size: 46px;" +
-                        "-fx-font-weight: 700;" +
-                        "-fx-text-fill: " + TEXT + ";"
+                        "-fx-font-weight: 700;"
         );
 
         Label subtitle = new Label(
@@ -104,30 +147,252 @@ public class SearchPage {
         );
 
         subtitle.setStyle(
-                "-fx-font-family: 'Inter';" +
-                        "-fx-font-size: 18px;" +
-                        "-fx-text-fill: " + SECONDARY + ";"
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 18px;"
         );
 
-        HBox searchBox = new HBox(10);
+        // ---------------------------------------------------------
+        // SEARCH CONTAINER
+        // ---------------------------------------------------------
 
-        searchBox.setAlignment(Pos.CENTER_LEFT);
+        searchContainer = new VBox(4);
+
+        searchContainer.setMaxWidth(
+                Double.MAX_VALUE
+        );
+
+        searchContainer.setFillWidth(true);
+
+        // ---------------------------------------------------------
+        // SEARCH FIELD
+        // ---------------------------------------------------------
 
         searchField = new TextField();
 
-        searchField.setPromptText("Search movies...");
-        searchField.setPrefHeight(48);
-
-        searchField.setStyle(
-                "-fx-background-color: white;" +
-                        "-fx-border-color: " + BORDER + ";" +
-                        "-fx-border-radius: 10;" +
-                        "-fx-background-radius: 10;" +
-                        "-fx-padding: 0 16;" +
-                        "-fx-font-size: 15px;"
+        searchField.setPromptText(
+                "Search movies..."
         );
 
-        HBox.setHgrow(searchField, Priority.ALWAYS);
+        searchField.setPrefHeight(48);
+
+        searchField.setMaxWidth(
+                Double.MAX_VALUE
+        );
+
+        ThemeManager.styleInput(searchField);
+
+        // ---------------------------------------------------------
+        // AUTOCOMPLETE SUGGESTIONS
+        // ---------------------------------------------------------
+
+        suggestionList = new ListView<>();
+
+        suggestionList.setPrefHeight(180);
+
+        suggestionList.setMaxHeight(180);
+
+        suggestionList.setMaxWidth(
+                Double.MAX_VALUE
+        );
+
+        suggestionList.setVisible(false);
+
+        suggestionList.setManaged(false);
+
+        suggestionList.setFocusTraversable(false);
+
+        suggestionList.setOnMousePressed(e -> {
+
+            String selected =
+                    suggestionList
+                            .getSelectionModel()
+                            .getSelectedItem();
+
+            if (selected == null ||
+                    selected.isBlank()) {
+                return;
+            }
+
+            Movie selectedMovie =
+                    findMovieByTitle(selected);
+
+            searchField.setText(selected);
+
+            hideSuggestions();
+
+            searchField.requestFocus();
+
+            if (selectedMovie != null) {
+                openMovieDetails(selectedMovie);
+            }
+        });
+
+        // ---------------------------------------------------------
+        // SEARCH FIELD KEYBOARD CONTROLS
+        // ---------------------------------------------------------
+
+        searchField.setOnKeyPressed(e -> {
+
+            switch (e.getCode()) {
+
+                case DOWN:
+
+                    if (suggestionList.isVisible() &&
+                            !suggestionList.getItems().isEmpty()) {
+
+                        suggestionList.requestFocus();
+
+                        suggestionList
+                                .getSelectionModel()
+                                .selectFirst();
+                    }
+
+                    break;
+
+                case ENTER:
+
+                    if (suggestionList.isVisible() &&
+                            suggestionList
+                                    .getSelectionModel()
+                                    .getSelectedItem() != null) {
+
+                        String selected =
+                                suggestionList
+                                        .getSelectionModel()
+                                        .getSelectedItem();
+
+                        Movie selectedMovie =
+                                findMovieByTitle(selected);
+
+                        searchField.setText(selected);
+
+                        hideSuggestions();
+
+                        if (selectedMovie != null) {
+                            openMovieDetails(selectedMovie);
+                        }
+
+                    } else {
+
+                        hideSuggestions();
+
+                        performSearch();
+                    }
+
+                    break;
+
+                case ESCAPE:
+
+                    hideSuggestions();
+
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        // ---------------------------------------------------------
+        // SUGGESTION LIST KEYBOARD CONTROLS
+        // ---------------------------------------------------------
+
+        suggestionList.setOnKeyPressed(e -> {
+
+            switch (e.getCode()) {
+
+                case ENTER:
+
+                    String selected =
+                            suggestionList
+                                    .getSelectionModel()
+                                    .getSelectedItem();
+
+                    if (selected != null &&
+                            !selected.isBlank()) {
+
+                        Movie selectedMovie =
+                                findMovieByTitle(selected);
+
+                        searchField.setText(selected);
+
+                        hideSuggestions();
+
+                        if (selectedMovie != null) {
+                            openMovieDetails(selectedMovie);
+                        }
+                    }
+
+                    break;
+
+                case ESCAPE:
+
+                    hideSuggestions();
+
+                    searchField.requestFocus();
+
+                    break;
+
+                case UP:
+
+                    if (suggestionList
+                            .getSelectionModel()
+                            .getSelectedIndex() == 0) {
+
+                        searchField.requestFocus();
+                    }
+
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        // ---------------------------------------------------------
+        // SEARCH FIELD TEXT LISTENER
+        // ---------------------------------------------------------
+
+        searchField.textProperty().addListener(
+                (observable, oldValue, newValue) -> {
+
+                    if (searchType == null ||
+                            "Movie Title".equals(
+                                    searchType.getValue())) {
+
+                        showSuggestions(newValue);
+
+                    } else {
+
+                        hideSuggestions();
+                    }
+                }
+        );
+
+        // ---------------------------------------------------------
+        // SEARCH FIELD FOCUS LISTENER
+        // ---------------------------------------------------------
+
+        searchField.focusedProperty().addListener(
+                (observable, oldValue, focused) -> {
+
+                    if (focused) {
+
+                        String text =
+                                searchField.getText();
+
+                        if (searchType == null ||
+                                "Movie Title".equals(
+                                        searchType.getValue())) {
+
+                            showSuggestions(text);
+                        }
+                    }
+                }
+        );
+
+        // ---------------------------------------------------------
+        // SEARCH TYPE
+        // ---------------------------------------------------------
 
         searchType = new ComboBox<>();
 
@@ -139,76 +404,134 @@ public class SearchPage {
         );
 
         searchType.setValue("Movie Title");
+
         searchType.setPrefHeight(48);
+
         searchType.setPrefWidth(190);
 
         searchType.setStyle(
-                "-fx-background-color: white;" +
-                        "-fx-border-color: " + BORDER + ";" +
-                        "-fx-border-radius: 10;" +
-                        "-fx-background-radius: 10;" +
-                        "-fx-font-size: 14px;"
+                "-fx-background-color: #FFFFFF;" +
+                        "-fx-border-color: #E5D6CF;" +
+                        "-fx-border-width: 1px;" +
+                        "-fx-border-radius: 8px;" +
+                        "-fx-background-radius: 8px;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: 600;" +
+                        "-fx-text-fill: #2B211E;"
         );
 
-        Button searchButton = new Button("Search");
+        searchType.setOnAction(e -> {
+
+            if ("Movie Title".equals(
+                    searchType.getValue())) {
+
+                showSuggestions(
+                        searchField.getText()
+                );
+
+            } else {
+
+                hideSuggestions();
+            }
+        });
+
+        // ---------------------------------------------------------
+        // SEARCH BUTTON
+        // ---------------------------------------------------------
+
+        Button searchButton =
+                new Button("Search");
 
         searchButton.setPrefHeight(48);
+
         searchButton.setPrefWidth(120);
 
-        searchButton.setStyle(
-                "-fx-background-color: " + PRIMARY + ";" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-size: 14px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-background-radius: 10;" +
-                        "-fx-cursor: hand;"
+        ThemeManager.styleButton(searchButton);
+
+        searchButton.setOnAction(e -> {
+
+            hideSuggestions();
+
+            performSearch();
+        });
+
+        // ---------------------------------------------------------
+        // SEARCH BOX
+        // ---------------------------------------------------------
+
+        HBox searchBox = new HBox(10);
+
+        searchBox.setAlignment(
+                Pos.TOP_LEFT
         );
 
-        searchButton.setOnAction(e -> performSearch());
-
-        searchField.setOnAction(e -> performSearch());
+        HBox.setHgrow(
+                searchContainer,
+                Priority.ALWAYS
+        );
 
         searchBox.getChildren().addAll(
-                searchField,
+                searchContainer,
                 searchType,
                 searchButton
         );
 
+        searchContainer.getChildren().addAll(
+                searchField,
+                suggestionList
+        );
+
+        // ---------------------------------------------------------
+        // RESULT LABEL
+        // ---------------------------------------------------------
+
         resultLabel = new Label();
 
         resultLabel.setStyle(
-                "-fx-font-family: 'Inter';" +
+                ThemeManager.primaryTextStyle() +
                         "-fx-font-size: 28px;" +
-                        "-fx-font-weight: 600;" +
-                        "-fx-text-fill: " + TEXT + ";"
+                        "-fx-font-weight: 600;"
         );
+
+        // ---------------------------------------------------------
+        // MOVIE GRID
+        // ---------------------------------------------------------
 
         movieGrid = new FlowPane();
 
         movieGrid.setHgap(24);
+
         movieGrid.setVgap(24);
 
         movieGrid.setPadding(
                 new Insets(10, 0, 20, 0)
         );
 
-        recommendationLabel = new Label(
-                "Recommended Movies"
-        );
+        // ---------------------------------------------------------
+        // RECOMMENDATION LABEL
+        // ---------------------------------------------------------
+
+        recommendationLabel =
+                new Label("Recommended Movies");
 
         recommendationLabel.setStyle(
-                "-fx-font-family: 'Inter';" +
+                ThemeManager.primaryTextStyle() +
                         "-fx-font-size: 28px;" +
-                        "-fx-font-weight: 600;" +
-                        "-fx-text-fill: " + TEXT + ";"
+                        "-fx-font-weight: 600;"
         );
 
         recommendationLabel.setVisible(false);
+
         recommendationLabel.setManaged(false);
+
+        // ---------------------------------------------------------
+        // RECOMMENDATION GRID
+        // ---------------------------------------------------------
 
         recommendationGrid = new FlowPane();
 
         recommendationGrid.setHgap(24);
+
         recommendationGrid.setVgap(24);
 
         recommendationGrid.setPadding(
@@ -216,7 +539,12 @@ public class SearchPage {
         );
 
         recommendationGrid.setVisible(false);
+
         recommendationGrid.setManaged(false);
+
+        // ---------------------------------------------------------
+        // ADD CONTENT
+        // ---------------------------------------------------------
 
         content.getChildren().addAll(
                 title,
@@ -228,12 +556,21 @@ public class SearchPage {
                 recommendationGrid
         );
 
-        ScrollPane scrollPane = new ScrollPane(content);
+        // ---------------------------------------------------------
+        // SCROLL PANE
+        // ---------------------------------------------------------
+
+        ScrollPane scrollPane =
+                new ScrollPane(content);
 
         scrollPane.setFitToWidth(true);
 
         scrollPane.setHbarPolicy(
                 ScrollPane.ScrollBarPolicy.NEVER
+        );
+
+        scrollPane.setVbarPolicy(
+                ScrollPane.ScrollBarPolicy.AS_NEEDED
         );
 
         scrollPane.setStyle(
@@ -243,24 +580,140 @@ public class SearchPage {
 
         root.setCenter(scrollPane);
 
+        // Display all movies initially
         displayMovies(movies);
 
         return root;
     }
 
-    private void performSearch() {
+    // =============================================================
+    // AUTOCOMPLETE
+    // =============================================================
 
-        String query = searchField.getText().trim();
+    private void showSuggestions(String text) {
+
+        if (suggestionList == null ||
+                titleTrie == null) {
+            return;
+        }
+
+        String query =
+                text == null
+                        ? ""
+                        : text.trim();
 
         if (query.isEmpty()) {
+
+            hideSuggestions();
+
+            return;
+        }
+
+        List<String> suggestions;
+
+        try {
+
+            suggestions =
+                    titleTrie.getSuggestions(
+                            query,
+                            SUGGESTION_LIMIT
+                    );
+
+        } catch (Exception e) {
+
+            hideSuggestions();
+
+            return;
+        }
+
+        suggestionList.getItems().clear();
+
+        if (suggestions == null ||
+                suggestions.isEmpty()) {
+
+            hideSuggestions();
+
+            return;
+        }
+
+        suggestionList
+                .getItems()
+                .addAll(suggestions);
+
+        suggestionList
+                .getSelectionModel()
+                .clearSelection();
+
+        suggestionList.setManaged(true);
+
+        suggestionList.setVisible(true);
+    }
+
+    private void hideSuggestions() {
+
+        if (suggestionList == null) {
+            return;
+        }
+
+        suggestionList
+                .getItems()
+                .clear();
+
+        suggestionList
+                .getSelectionModel()
+                .clearSelection();
+
+        suggestionList.setVisible(false);
+
+        suggestionList.setManaged(false);
+    }
+
+    private Movie findMovieByTitle(String title) {
+
+        if (title == null ||
+                title.isBlank()) {
+
+            return null;
+        }
+
+        return titleMovieMap.get(
+                title.trim().toLowerCase()
+        );
+    }
+
+    // =============================================================
+    // SEARCH
+    // =============================================================
+
+    private void performSearch() {
+
+        hideSuggestions();
+
+        if (searchField == null) {
+            return;
+        }
+
+        String text =
+                searchField.getText();
+
+        String query =
+                text == null
+                        ? ""
+                        : text.trim();
+
+        if (query.isEmpty()) {
+
             displayMovies(movies);
+
             hideRecommendations();
+
             return;
         }
 
         displayedMovies = 20;
 
-        String type = searchType.getValue();
+        String type =
+                searchType.getValue();
 
         if (type == null) {
             type = "Movie Title";
@@ -269,35 +722,48 @@ public class SearchPage {
         switch (type) {
 
             case "Movie Title":
+
                 searchByTitle(query);
+
                 break;
 
             case "Keyword":
+
                 searchByKeyword(query);
+
                 break;
 
             case "Tagline":
+
                 searchByTagline(query);
+
                 break;
 
             case "Spoken Languages":
+
                 searchByLanguage(query);
+
                 break;
 
             default:
+
                 displayMovies(movies);
+
+                break;
         }
     }
 
     private void searchByTitle(String query) {
 
         List<Movie> result =
-                MovieSearchAlgorithms.searchByTitle(
-                        movies,
-                        query
-                );
+                MovieSearchAlgorithms
+                        .searchByTitle(
+                                movies,
+                                query
+                        );
 
-        if (!result.isEmpty()) {
+        if (result != null &&
+                !result.isEmpty()) {
 
             resultLabel.setText(
                     "Movie Title Search (" +
@@ -307,14 +773,17 @@ public class SearchPage {
 
             displayMovieCards(result);
 
+            hideRecommendations();
+
             return;
         }
 
         Movie suggestion =
-                MovieSearchAlgorithms.findClosestMovie(
-                        movies,
-                        query
-                );
+                MovieSearchAlgorithms
+                        .findClosestMovie(
+                                movies,
+                                query
+                        );
 
         movieGrid.getChildren().clear();
 
@@ -344,14 +813,17 @@ public class SearchPage {
     private void searchByKeyword(String query) {
 
         List<Movie> result =
-                MovieSearchAlgorithms.searchByKeyword(
-                        movies,
-                        query
-                );
+                MovieSearchAlgorithms
+                        .searchByKeyword(
+                                movies,
+                                query
+                        );
 
         resultLabel.setText(
                 "Keyword Search (" +
-                        result.size() +
+                        (result == null
+                                ? 0
+                                : result.size()) +
                         ")"
         );
 
@@ -361,14 +833,17 @@ public class SearchPage {
     private void searchByTagline(String query) {
 
         List<Movie> result =
-                MovieSearchAlgorithms.searchByTagline(
-                        movies,
-                        query
-                );
+                MovieSearchAlgorithms
+                        .searchByTagline(
+                                movies,
+                                query
+                        );
 
         resultLabel.setText(
                 "Tagline Search (" +
-                        result.size() +
+                        (result == null
+                                ? 0
+                                : result.size()) +
                         ")"
         );
 
@@ -378,27 +853,32 @@ public class SearchPage {
     private void searchByLanguage(String query) {
 
         List<Movie> result =
-                MovieSearchAlgorithms.searchByLanguage(
-                        movies,
-                        query
-                );
+                MovieSearchAlgorithms
+                        .searchByLanguage(
+                                movies,
+                                query
+                        );
 
         resultLabel.setText(
                 "Spoken Language Search (" +
-                        result.size() +
+                        (result == null
+                                ? 0
+                                : result.size()) +
                         ")"
         );
 
         displaySearchResults(result);
     }
 
-    private void displaySearchResults(List<Movie> result) {
+    private void displaySearchResults(
+            List<Movie> result) {
 
         hideRecommendations();
 
         movieGrid.getChildren().clear();
 
-        if (result == null || result.isEmpty()) {
+        if (result == null ||
+                result.isEmpty()) {
 
             resultLabel.setText(
                     resultLabel.getText() +
@@ -411,13 +891,19 @@ public class SearchPage {
         displayMovieCards(result);
     }
 
-    private void displayMovies(List<Movie> movieList) {
+    // =============================================================
+    // MOVIE DISPLAY
+    // =============================================================
+
+    private void displayMovies(
+            List<Movie> movieList) {
 
         hideRecommendations();
 
         movieGrid.getChildren().clear();
 
-        if (movieList == null || movieList.isEmpty()) {
+        if (movieList == null ||
+                movieList.isEmpty()) {
 
             resultLabel.setText(
                     "No movies found"
@@ -435,22 +921,27 @@ public class SearchPage {
         displayMovieCards(movieList);
     }
 
-    private void displayMovieCards(List<Movie> movieList) {
+    private void displayMovieCards(
+            List<Movie> movieList) {
 
         movieGrid.getChildren().clear();
 
-        if (movieList == null || movieList.isEmpty()) {
+        if (movieList == null ||
+                movieList.isEmpty()) {
+
             return;
         }
 
-        int end = Math.min(
-                displayedMovies,
-                movieList.size()
-        );
+        int end =
+                Math.min(
+                        displayedMovies,
+                        movieList.size()
+                );
 
         for (int i = 0; i < end; i++) {
 
-            Movie movie = movieList.get(i);
+            Movie movie =
+                    movieList.get(i);
 
             if (movie != null) {
 
@@ -461,10 +952,17 @@ public class SearchPage {
         }
     }
 
-    private void showRecommendations(Movie selectedMovie) {
+    // =============================================================
+    // RECOMMENDATIONS
+    // =============================================================
+
+    private void showRecommendations(
+            Movie selectedMovie) {
 
         if (selectedMovie == null) {
+
             hideRecommendations();
+
             return;
         }
 
@@ -475,12 +973,15 @@ public class SearchPage {
                         RECOMMENDATION_LIMIT
                 );
 
-        recommendationGrid.getChildren().clear();
+        recommendationGrid
+                .getChildren()
+                .clear();
 
         if (recommendations == null ||
                 recommendations.isEmpty()) {
 
             hideRecommendations();
+
             return;
         }
 
@@ -490,20 +991,20 @@ public class SearchPage {
         );
 
         recommendationLabel.setVisible(true);
+
         recommendationLabel.setManaged(true);
 
         recommendationGrid.setVisible(true);
+
         recommendationGrid.setManaged(true);
 
         for (Movie movie : recommendations) {
 
             if (movie != null) {
 
-                recommendationGrid
-                        .getChildren()
-                        .add(
-                                createMovieCard(movie)
-                        );
+                recommendationGrid.getChildren().add(
+                        createMovieCard(movie)
+                );
             }
         }
     }
@@ -512,64 +1013,75 @@ public class SearchPage {
 
         if (recommendationGrid != null) {
 
-            recommendationGrid.getChildren().clear();
+            recommendationGrid
+                    .getChildren()
+                    .clear();
 
             recommendationGrid.setVisible(false);
+
             recommendationGrid.setManaged(false);
         }
 
         if (recommendationLabel != null) {
 
             recommendationLabel.setVisible(false);
+
             recommendationLabel.setManaged(false);
         }
     }
+
+    // =============================================================
+    // MOVIE CARD
+    // =============================================================
 
     private VBox createMovieCard(Movie movie) {
 
         VBox card = new VBox();
 
         card.setPrefWidth(220);
+
         card.setMaxWidth(220);
 
-        card.setStyle(
-                "-fx-background-color: " + WHITE + ";" +
-                        "-fx-background-radius: 12;" +
-                        "-fx-border-color: rgba(225,191,181,0.25);" +
-                        "-fx-border-radius: 12;" +
-                        "-fx-effect: dropshadow(" +
-                        "gaussian," +
-                        "rgba(0,0,0,0.04)," +
-                        "20,0,0,4);" +
-                        "-fx-cursor: hand;"
+        ThemeManager.styleCard(card);
+
+        StackPane posterBox =
+                new StackPane();
+
+        posterBox.setPrefSize(
+                220,
+                330
         );
 
-        StackPane posterBox = new StackPane();
+        String posterUrl =
+                getPosterUrl(movie);
 
-        posterBox.setPrefSize(220, 330);
-
-        String posterUrl = getPosterUrl(movie);
-
-        if (posterUrl != null && !posterUrl.isBlank()) {
+        if (posterUrl != null &&
+                !posterUrl.isBlank()) {
 
             try {
 
-                Image image = new Image(
-                        posterUrl,
-                        220,
-                        330,
-                        false,
-                        true,
-                        true
-                );
+                Image image =
+                        new Image(
+                                posterUrl,
+                                220,
+                                330,
+                                false,
+                                true,
+                                true
+                        );
 
-                ImageView imageView = new ImageView(image);
+                ImageView imageView =
+                        new ImageView(image);
 
                 imageView.setFitWidth(220);
+
                 imageView.setFitHeight(330);
+
                 imageView.setPreserveRatio(false);
 
-                posterBox.getChildren().add(imageView);
+                posterBox.getChildren().add(
+                        imageView
+                );
 
             } catch (Exception e) {
 
@@ -587,57 +1099,66 @@ public class SearchPage {
 
         VBox info = new VBox(6);
 
-        info.setPadding(new Insets(14));
+        info.setPadding(
+                new Insets(14)
+        );
 
-        String titleText = movie.getTitle();
+        String titleText =
+                movie.getTitle();
 
-        if (titleText == null || titleText.isBlank()) {
+        if (titleText == null ||
+                titleText.isBlank()) {
+
             titleText = "Unknown Movie";
         }
 
-        Label title = new Label(titleText);
+        Label title =
+                new Label(titleText);
 
         title.setMaxWidth(190);
+
         title.setEllipsisString("...");
 
         title.setStyle(
-                "-fx-font-family: 'Inter';" +
+                ThemeManager.primaryTextStyle() +
                         "-fx-font-size: 18px;" +
-                        "-fx-font-weight: 600;" +
-                        "-fx-text-fill: " + TEXT + ";"
+                        "-fx-font-weight: 600;"
         );
 
-        HBox metadata = new HBox();
+        HBox metadata =
+                new HBox();
 
-        Label year = new Label(
-                getYear(movie)
-        );
+        Label year =
+                new Label(
+                        getYear(movie)
+                );
 
         year.setStyle(
-                "-fx-font-size: 13px;" +
-                        "-fx-text-fill: " + SECONDARY + ";"
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 13px;"
         );
 
-        Region spacer = new Region();
+        Region spacer =
+                new Region();
 
         HBox.setHgrow(
                 spacer,
                 Priority.ALWAYS
         );
 
-        Label genre = new Label(
-                getGenreText(movie)
-        );
+        Label genre =
+                new Label(
+                        getGenreText(movie)
+                );
 
         genre.setPadding(
                 new Insets(3, 8, 3, 8)
         );
 
         genre.setStyle(
-                "-fx-background-color: " + MEDIUM_GRAY + ";" +
-                        "-fx-background-radius: 4;" +
+                ThemeManager.secondaryTextStyle() +
                         "-fx-font-size: 12px;" +
-                        "-fx-text-fill: " + SECONDARY + ";"
+                        "-fx-background-radius: 4;"
         );
 
         metadata.getChildren().addAll(
@@ -646,18 +1167,19 @@ public class SearchPage {
                 genre
         );
 
-        Label rating = new Label(
-                "★ " +
-                        String.format(
-                                "%.1f",
-                                movie.getVoteAverage()
-                        )
-        );
+        Label rating =
+                new Label(
+                        "★ " +
+                                String.format(
+                                        "%.1f",
+                                        movie.getVoteAverage()
+                                )
+                );
 
         rating.setStyle(
-                "-fx-font-size: 13px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: " + PRIMARY_DARK + ";"
+                ThemeManager.primaryTextStyle() +
+                        "-fx-font-size: 13px;" +
+                        "-fx-font-weight: bold;"
         );
 
         info.getChildren().addAll(
@@ -671,54 +1193,70 @@ public class SearchPage {
                 info
         );
 
+        // ---------------------------------------------------------
+        // CARD CLICK
+        // ---------------------------------------------------------
+
         card.setOnMouseClicked(
                 e -> openMovieDetails(movie)
         );
 
-        card.setOnMouseEntered(
-                e -> {
-                    card.setScaleX(1.02);
-                    card.setScaleY(1.02);
-                }
-        );
+        // ---------------------------------------------------------
+        // CARD HOVER
+        // ---------------------------------------------------------
 
-        card.setOnMouseExited(
-                e -> {
-                    card.setScaleX(1);
-                    card.setScaleY(1);
-                }
-        );
+        card.setOnMouseEntered(e -> {
+
+            card.setScaleX(1.02);
+
+            card.setScaleY(1.02);
+        });
+
+        card.setOnMouseExited(e -> {
+
+            card.setScaleX(1);
+
+            card.setScaleY(1);
+        });
 
         return card;
     }
 
-    private StackPane createPlaceholder(Movie movie) {
+    // =============================================================
+    // PLACEHOLDER
+    // =============================================================
 
-        StackPane pane = new StackPane();
+    private StackPane createPlaceholder(
+            Movie movie) {
 
-        pane.setPrefSize(220, 330);
+        StackPane pane =
+                new StackPane();
 
-        pane.setStyle(
-                "-fx-background-color: " +
-                        LIGHT_GRAY + ";"
+        pane.setPrefSize(
+                220,
+                330
         );
 
-        String title = movie.getTitle();
-
-        if (title == null || title.isBlank()) {
-            title = "Unknown Movie";
-        }
-
-        Label label = new Label(title);
+        Label label =
+                new Label(
+                        movie.getTitle() == null ||
+                                movie.getTitle().isBlank()
+                                ? "Unknown Movie"
+                                : movie.getTitle()
+                );
 
         label.setWrapText(true);
+
         label.setMaxWidth(180);
-        label.setAlignment(Pos.CENTER);
+
+        label.setAlignment(
+                Pos.CENTER
+        );
 
         label.setStyle(
-                "-fx-font-size: 18px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: " + SECONDARY + ";"
+                ThemeManager.secondaryTextStyle() +
+                        "-fx-font-size: 18px;" +
+                        "-fx-font-weight: bold;"
         );
 
         pane.getChildren().add(label);
@@ -726,13 +1264,16 @@ public class SearchPage {
         return pane;
     }
 
-    private void openMovieDetails(Movie movie) {
+    // =============================================================
+    // MOVIE DETAILS
+    // =============================================================
+
+    private void openMovieDetails(
+            Movie movie) {
 
         if (movie == null) {
             return;
         }
-
-        showRecommendations(movie);
 
         Stage stage =
                 (Stage) movieGrid
@@ -743,16 +1284,32 @@ public class SearchPage {
                 new MovieDetailsPage(
                         movie,
                         movies,
+
+                        // Home
                         () -> showHome(stage),
-                        () -> new SearchPage(movies).show(stage),
+
+                        // Search
+                        () -> new SearchPage(
+                                movies
+                        ).show(stage),
+
+                        // Genres
                         () -> showGenres(stage),
+
+                        // Recommendation
                         selectedMovie ->
                                 new MovieDetailsPage(
                                         selectedMovie,
                                         movies,
+
                                         () -> showHome(stage),
-                                        () -> new SearchPage(movies).show(stage),
+
+                                        () -> new SearchPage(
+                                                movies
+                                        ).show(stage),
+
                                         () -> showGenres(stage),
+
                                         null
                                 ).show(stage)
                 );
@@ -765,14 +1322,28 @@ public class SearchPage {
                 )
         );
 
+        ThemeManager.applyTheme(
+                stage.getScene()
+        );
+
+        stage.setMaximized(true);
         stage.show();
     }
 
+    // =============================================================
+    // HOME
+    // =============================================================
+
     private void showHome(Stage stage) {
 
-        new SearchPage(movies)
-                .show(stage);
+        new SearchPage(
+                movies
+        ).show(stage);
     }
+
+    // =============================================================
+    // GENRES
+    // =============================================================
 
     private void showGenres(Stage stage) {
 
@@ -785,21 +1356,41 @@ public class SearchPage {
                             new MovieDetailsPage(
                                     movie,
                                     movies,
+
+                                    // Home
                                     () -> showHome(stage),
-                                    () -> new SearchPage(movies).show(stage),
+
+                                    // Search
+                                    () -> new SearchPage(
+                                            movies
+                                    ).show(stage),
+
+                                    // Genres
                                     () -> showGenres(stage),
 
+                                    // Recommendation
                                     selected ->
                                             new MovieDetailsPage(
                                                     selected,
                                                     movies,
+
+                                                    // Home
                                                     () -> showHome(stage),
-                                                    () -> new SearchPage(movies).show(stage),
+
+                                                    // Search
+                                                    () -> new SearchPage(
+                                                            movies
+                                                    ).show(stage),
+
+                                                    // Genres
                                                     () -> showGenres(stage),
+
+                                                    // Recommendation
                                                     null
                                             ).show(stage)
                             );
 
+                    // Create Movie Details scene
                     stage.setScene(
                             new Scene(
                                     details.getRoot(),
@@ -808,23 +1399,41 @@ public class SearchPage {
                             )
                     );
 
+                    // Apply centralized theme
+                    ThemeManager.applyTheme(
+                            stage.getScene()
+                    );
+
+                    // Keep the window maximized
+                    stage.setMaximized(true);
+
+                    // Show the updated scene
                     stage.show();
                 },
 
+                // Home
                 () -> showHome(stage),
 
+                // Genres
                 () -> showGenres(stage)
 
         ).show(stage);
     }
 
+    // =============================================================
+    // POSTER URL
+    // =============================================================
+
     private String getPosterUrl(Movie movie) {
 
         try {
 
-            String url = movie.getPosterUrl();
+            String url =
+                    movie.getPosterUrl();
 
-            if (url == null || url.isBlank()) {
+            if (url == null ||
+                    url.isBlank()) {
+
                 return null;
             }
 
@@ -836,7 +1445,8 @@ public class SearchPage {
 
             if (url.startsWith("/")) {
 
-                return "https://image.tmdb.org/t/p/w500" + url;
+                return "https://image.tmdb.org/t/p/w500"
+                        + url;
             }
 
             return url;
@@ -847,13 +1457,19 @@ public class SearchPage {
         }
     }
 
+    // =============================================================
+    // YEAR
+    // =============================================================
+
     private String getYear(Movie movie) {
 
         try {
 
-            String date = movie.getReleaseDate();
+            String date =
+                    movie.getReleaseDate();
 
-            if (date != null && date.length() >= 4) {
+            if (date != null &&
+                    date.length() >= 4) {
 
                 return date.substring(0, 4);
             }
@@ -863,6 +1479,10 @@ public class SearchPage {
 
         return "N/A";
     }
+
+    // =============================================================
+    // GENRE
+    // =============================================================
 
     private String getGenreText(Movie movie) {
 
@@ -885,158 +1505,5 @@ public class SearchPage {
         }
 
         return "Movie";
-    }
-
-    private HBox createNavbar(Stage stage) {
-
-        HBox navbar = new HBox();
-
-        navbar.setAlignment(Pos.CENTER_LEFT);
-
-        navbar.setPadding(
-                new Insets(0, 64, 0, 64)
-        );
-
-        navbar.setPrefHeight(80);
-
-        navbar.setStyle(
-                "-fx-background-color: rgba(249,249,247,0.97);" +
-                        "-fx-border-color: " + BORDER + ";" +
-                        "-fx-border-width: 0 0 1 0;"
-        );
-
-        Label logo = new Label("MovieFlix");
-
-        logo.setStyle(
-                "-fx-font-family: 'Inter';" +
-                        "-fx-font-size: 24px;" +
-                        "-fx-font-weight: 900;" +
-                        "-fx-text-fill: " + PRIMARY_DARK + ";"
-        );
-
-        HBox navigation = new HBox(24);
-
-        navigation.setAlignment(Pos.CENTER_LEFT);
-
-        navigation.setPadding(
-                new Insets(0, 0, 0, 48)
-        );
-
-        Button home = createNavButton(
-                "Home",
-                false
-        );
-
-        Button search = createNavButton(
-                "Search",
-                true
-        );
-
-        Button genres = createNavButton(
-                "Genres",
-                false
-        );
-
-        home.setOnAction(
-                e -> showHome(stage)
-        );
-
-        genres.setOnAction(
-                e -> showGenres(stage)
-        );
-
-        navigation.getChildren().addAll(
-                home,
-                search,
-                genres
-        );
-
-        Region spacer = new Region();
-
-        HBox.setHgrow(
-                spacer,
-                Priority.ALWAYS
-        );
-
-        Button favorite = createIconButton("♥");
-
-        Button watchlist = createIconButton("🔖");
-
-        Circle circle = new Circle(
-                20,
-                Color.web(MEDIUM_GRAY)
-        );
-
-        Label profileText = new Label("U");
-
-        profileText.setStyle(
-                "-fx-font-family: 'Inter';" +
-                        "-fx-font-size: 14px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: " + TEXT + ";"
-        );
-
-        StackPane profile = new StackPane(
-                circle,
-                profileText
-        );
-
-        navbar.getChildren().addAll(
-                logo,
-                navigation,
-                spacer,
-                favorite,
-                watchlist,
-                profile
-        );
-
-        HBox.setMargin(
-                favorite,
-                new Insets(0, 16, 0, 0)
-        );
-
-        HBox.setMargin(
-                watchlist,
-                new Insets(0, 24, 0, 0)
-        );
-
-        return navbar;
-    }
-
-    private Button createNavButton(
-            String text,
-            boolean active
-    ) {
-
-        Button button = new Button(text);
-
-        button.setStyle(
-                "-fx-background-color: transparent;" +
-                        "-fx-border-width: 0;" +
-                        "-fx-padding: 6 0 8 0;" +
-                        "-fx-font-family: 'Inter';" +
-                        "-fx-font-size: 14px;" +
-                        "-fx-font-weight: " +
-                        (active ? "700" : "500") + ";" +
-                        "-fx-text-fill: " +
-                        (active ? PRIMARY_DARK : SECONDARY) + ";" +
-                        "-fx-cursor: hand;"
-        );
-
-        return button;
-    }
-
-    private Button createIconButton(String text) {
-
-        Button button = new Button(text);
-
-        button.setStyle(
-                "-fx-background-color: transparent;" +
-                        "-fx-font-size: 20px;" +
-                        "-fx-text-fill: " + TEXT + ";" +
-                        "-fx-cursor: hand;"
-        );
-
-        return button;
     }
 }
